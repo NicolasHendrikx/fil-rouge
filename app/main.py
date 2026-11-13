@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, HTTPException
+from pydantic import BaseModel
 
 from app import handlers
 from app.calendar import Calendar, Room
@@ -39,10 +40,18 @@ def get_conn() -> Iterator[sqlite3.Connection]:
 
 Conn = Annotated[sqlite3.Connection, Depends(get_conn)]
 
+
+class ErrorDetail(BaseModel):
+    detail: str
+
+
+# Réponse d'erreur commune, déclarée pour respecter le contrat openapi.yml.
+ROOMS_UNAVAILABLE = {500: {"model": ErrorDetail, "description": "rooms unavailable"}}
+
 app = FastAPI(title="Salles", lifespan=lifespan)
 
 
-@app.get("/rooms", response_model=list[Room])
+@app.get("/rooms", response_model=list[Room], responses=ROOMS_UNAVAILABLE)
 def list_rooms(conn: Conn) -> list[Room]:
     try:
         return handlers.list_rooms(conn)
@@ -50,7 +59,7 @@ def list_rooms(conn: Conn) -> list[Room]:
         raise HTTPException(status_code=500, detail="rooms unavailable") from error
 
 
-@app.get("/rooms/available", response_model=list[Calendar])
+@app.get("/rooms/available", response_model=list[Calendar], responses=ROOMS_UNAVAILABLE)
 def list_available_rooms(day: date, conn: Conn) -> list[Calendar]:
     try:
         return handlers.list_available_rooms(conn, day)

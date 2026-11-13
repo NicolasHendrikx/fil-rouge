@@ -1,0 +1,97 @@
+# Contrat de l'API « Salles ». Toute route est d'abord décrite ici, puis implémentée.
+# tests/test_contract.py vérifie que l'application expose exactement ces routes et ces codes.
+openapi: 3.1.0
+info:
+  title: Salles
+  version: 0.1.0
+  description: Réservation de salles de réunion.
+
+paths:
+  /rooms:
+    get:
+      operationId: list_rooms
+      summary: Lister les salles
+      responses:
+        "200":
+          description: Toutes les salles, triées par identifiant.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Room"
+        "500":
+          $ref: "#/components/responses/RoomsUnavailable"
+
+  /rooms/available:
+    get:
+      operationId: list_available_rooms
+      summary: Lister les salles disponibles un jour donné
+      parameters:
+        - name: day
+          in: query
+          required: true
+          description: Jour au format AAAA-MM-JJ.
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: >-
+            Un calendar par salle ayant au moins un quart d'heure libre entre 8 h et 18 h,
+            avec ses seuls créneaux libres.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Calendar"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "500":
+          $ref: "#/components/responses/RoomsUnavailable"
+
+components:
+  schemas:
+    Room:
+      type: object
+      required: [id, name, capacity]
+      properties:
+        id: {type: integer}
+        name: {type: string}
+        capacity: {type: integer}
+
+    Slot:
+      type: object
+      required: [start, end]
+      properties:
+        start: {type: string, format: date-time}
+        end: {type: string, format: date-time}
+
+    Calendar:
+      type: object
+      required: [subject, day, granularity_minutes, slots]
+      properties:
+        subject: {$ref: "#/components/schemas/Room"}
+        day: {type: string, format: date}
+        granularity_minutes: {type: integer, const: 15}
+        slots:
+          type: array
+          items: {$ref: "#/components/schemas/Slot"}
+
+    ErrorDetail:
+      type: object
+      required: [detail]
+      properties:
+        detail: {type: string}
+
+  responses:
+    RoomsUnavailable:
+      description: 'La base est inaccessible : {"detail": "rooms unavailable"}.'
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorDetail"
+
+    ValidationError:
+      description: Paramètre ou corps de requête invalide (validation FastAPI).

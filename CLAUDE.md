@@ -23,6 +23,9 @@ Une requête traverse trois couches, toujours dans cet ordre : route → handler
   d'heure (`granularity_minutes: 15`) ; `slots` liste des créneaux `{start, end}` de 15 min.
   Les heures de la journée (8 h – 18 h) sont `DAY_START` et `DAY_END` : ne pas les recopier ailleurs.
 - `app/schema.sql` : schéma et données de démonstration, chargés au premier démarrage.
+- `openapi.yml` : le contrat de l'API. Une nouvelle route y est décrite d'abord, puis implémentée.
+  `tests/test_contract.py` exige que l'app expose exactement ses routes et ses codes de réponse :
+  une route déclare ses codes d'erreur avec `responses=` (ex. `ROOMS_UNAVAILABLE`).
 
 ## Conventions
 
