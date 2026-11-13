@@ -51,6 +51,44 @@ paths:
         "500":
           $ref: "#/components/responses/RoomsUnavailable"
 
+  /rooms/{room_id}/status:
+    get:
+      operationId: get_room_status
+      summary: Connaître l'état d'une salle à un instant donné (écran de porte)
+      parameters:
+        - name: room_id
+          in: path
+          required: true
+          description: Identifiant de la salle.
+          schema:
+            type: integer
+        - name: at
+          in: query
+          required: true
+          description: Instant observé, AAAA-MM-JJTHH:MM:SS, heure locale sans fuseau.
+          schema:
+            type: string
+            format: date-time
+      responses:
+        "200":
+          description: >-
+            L'état de la salle à l'instant `at`. Une réservation est en cours si
+            start <= at < end : à l'instant de sa fin, la salle est libre.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoomStatus"
+        "404":
+          description: 'La salle n''existe pas : {"detail": "room not found"}.'
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetail"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "500":
+          $ref: "#/components/responses/RoomsUnavailable"
+
   /bookings:
     post:
       operationId: create_booking
@@ -144,6 +182,35 @@ components:
         organizer: {type: string}
         start: {type: string, format: date-time}
         end: {type: string, format: date-time}
+
+    BookingSummary:
+      type: object
+      description: Réservation telle qu'affichée sur l'écran de porte.
+      required: [organizer, start, end]
+      properties:
+        organizer: {type: string}
+        start: {type: string, format: date-time}
+        end: {type: string, format: date-time}
+
+    RoomStatus:
+      type: object
+      description: >-
+        État d'une salle à un instant donné. Si la salle est occupée, `current` est la
+        réservation en cours et `next` vaut null. Si elle est libre, `current` vaut null et
+        `next` est la première réservation du même jour qui commence après `at`, ou null.
+      required: [room, at, state, current, next]
+      properties:
+        room: {$ref: "#/components/schemas/Room"}
+        at: {type: string, format: date-time}
+        state: {type: string, enum: [free, occupied]}
+        current:
+          oneOf:
+            - $ref: "#/components/schemas/BookingSummary"
+            - type: "null"
+        next:
+          oneOf:
+            - $ref: "#/components/schemas/BookingSummary"
+            - type: "null"
 
     ErrorDetail:
       type: object

@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from enum import Enum
 
-from app.calendar import Booking, Calendar, Room, day_slots, is_free
+from app.calendar import Booking, Calendar, Room, RoomStatus, day_slots, is_free
 from app.repository import Repository, RepositoryError
 
 
@@ -15,6 +15,7 @@ class ErrorKind(Enum):
     STORAGE_UNAVAILABLE = "storage unavailable"
     ROOM_NOT_FOUND = "room not found"
     SLOT_ALREADY_BOOKED = "slot already booked"
+    TIME_WITH_TIMEZONE = "time with timezone"
 
 
 @dataclass(frozen=True)
@@ -35,6 +36,11 @@ class AvailableRoomsResponse:
 @dataclass(frozen=True)
 class BookingResponse:
     booking: Booking
+
+
+@dataclass(frozen=True)
+class RoomStatusResponse:
+    status: RoomStatus
 
 
 def list_rooms(repository: Repository) -> RoomsResponse | Error:
@@ -75,3 +81,25 @@ def create_booking(
         return Error(ErrorKind.SLOT_ALREADY_BOOKED)
     booking = Booking(id=booking_id, room=room, organizer=organizer, start=start, end=end)
     return BookingResponse(booking=booking)
+
+
+def get_room_status(
+    repository: Repository, room_id: int, at: datetime
+) -> RoomStatusResponse | Error:
+    """Occupée si une réservation vérifie start <= at < end ; sinon libre, avec la suivante."""
+    if at.tzinfo is not None:
+        return Error(ErrorKind.TIME_WITH_TIMEZONE)
+    try:
+        room = repository.get_room(room_id)
+        if room is None:
+            return Error(ErrorKind.ROOM_NOT_FOUND)
+        bookings = repository.list_room_bookings(room.id, at.date())
+    except RepositoryError:
+        return Error(ErrorKind.STORAGE_UNAVAILABLE)
+    current = next((b for b in bookings if b.start <= at < b.end), None)
+    if current is not None:
+        status = RoomStatus(room=room, at=at, state="occupied", current=current, next=None)
+    else:
+        upcoming = next((b for b in bookings if b.start > at), None)
+        status = RoomStatus(room=room, at=at, state="free", current=None, next=upcoming)
+    return RoomStatusResponse(status=status)

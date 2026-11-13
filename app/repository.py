@@ -5,7 +5,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import date, datetime
 
-from app.calendar import Room
+from app.calendar import BookingSummary, Room
 
 
 class RepositoryError(Exception):
@@ -80,3 +80,20 @@ class Repository:
                 (datetime.fromisoformat(starts_at), datetime.fromisoformat(ends_at))
             )
         return bookings
+
+    def list_room_bookings(self, room_id: int, day: date) -> list[BookingSummary]:
+        """Réservations d'une salle pour un jour, par heure de début croissante."""
+        with _sqlite_errors():
+            rows = self._conn.execute(
+                "SELECT organizer, starts_at, ends_at FROM bookings"
+                " WHERE room_id = ? AND date(starts_at) = ? ORDER BY starts_at",
+                (room_id, day.isoformat()),
+            ).fetchall()
+        return [
+            BookingSummary(
+                organizer=organizer,
+                start=datetime.fromisoformat(starts_at),
+                end=datetime.fromisoformat(ends_at),
+            )
+            for organizer, starts_at, ends_at in rows
+        ]

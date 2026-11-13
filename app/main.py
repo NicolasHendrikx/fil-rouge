@@ -9,10 +9,11 @@ from pathlib import Path
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, model_validator
 
 from app import handlers
-from app.calendar import Booking, Calendar, Room, slot_problem
+from app.calendar import Booking, Calendar, Room, RoomStatus, slot_problem
 from app.handlers import Error, ErrorKind
 from app.repository import Repository
 
@@ -62,6 +63,7 @@ HTTP_ERRORS = {
     ErrorKind.STORAGE_UNAVAILABLE: (500, "rooms unavailable"),
     ErrorKind.ROOM_NOT_FOUND: (404, "room not found"),
     ErrorKind.SLOT_ALREADY_BOOKED: (409, "slot already booked"),
+    ErrorKind.TIME_WITH_TIMEZONE: (422, "at must be a local time without timezone"),
 }
 
 
@@ -88,6 +90,13 @@ class BookingRequest(BaseModel):
 
 app = FastAPI(title="Salles", lifespan=lifespan)
 
+# L'écran de porte (porte/) est servi sur le port 8001 : il appelle l'API depuis le navigateur.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:8001", "http://127.0.0.1:8001"],
+    allow_methods=["GET"],
+)
+
 
 @app.get("/rooms", response_model=list[Room], responses=ROOMS_UNAVAILABLE)
 def list_rooms(repository: Repo) -> list[Room]:
@@ -103,6 +112,18 @@ def list_available_rooms(day: date, repository: Repo) -> list[Calendar]:
     if isinstance(result, Error):
         raise http_error(result)
     return result.calendars
+
+
+@app.get(
+    "/rooms/{room_id}/status",
+    response_model=RoomStatus,
+    responses=ROOM_NOT_FOUND | ROOMS_UNAVAILABLE,
+)
+def get_room_status(room_id: int, at: datetime, repository: Repo) -> RoomStatus:
+    result = handlers.get_room_status(repository, room_id, at)
+    if isinstance(result, Error):
+        raise http_error(result)
+    return result.status
 
 
 @app.post(

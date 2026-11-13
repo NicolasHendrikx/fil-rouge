@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
+from typing import Literal
 
 DAY_START = time(8)
 DAY_END = time(18)
@@ -36,6 +37,26 @@ class Booking:
     organizer: str
     start: datetime
     end: datetime
+
+
+@dataclass(frozen=True)
+class BookingSummary:
+    """Réservation telle qu'affichée sur l'écran de porte."""
+
+    organizer: str
+    start: datetime
+    end: datetime
+
+
+@dataclass(frozen=True)
+class RoomStatus:
+    """État d'une salle à l'instant `at` : occupée (`current`) ou libre (`next`)."""
+
+    room: Room
+    at: datetime
+    state: Literal["free", "occupied"]
+    current: BookingSummary | None
+    next: BookingSummary | None
 
 
 def slot_problem(start: datetime, end: datetime) -> str | None:
