@@ -36,7 +36,7 @@ function currentMoment() {
 function floorToQuarter(moment) {
   const [day, time] = moment.split("T");
   const [hours, minutes] = time.split(":").map(Number);
-  const total = hours * 60 + minutes - (minutes % 15 || 15);
+  const total = hours * 60 + minutes - (minutes % 15);
   return `${day}T${pad(Math.floor(total / 60))}:${pad(total % 60)}:00`;
 }
 
