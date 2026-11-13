@@ -4,15 +4,15 @@ import os
 import sqlite3
 from collections.abc import Iterator
 from contextlib import asynccontextmanager
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, model_validator
 
 from app import handlers
-from app.calendar import Calendar, Room
+from app.calendar import Booking, Calendar, Room, slot_problem
 from app.handlers import Error, ErrorKind
 from app.repository import Repository
 
@@ -54,16 +54,36 @@ class ErrorDetail(BaseModel):
 
 # Réponse d'erreur commune, déclarée pour respecter le contrat openapi.yml.
 ROOMS_UNAVAILABLE = {500: {"model": ErrorDetail, "description": "rooms unavailable"}}
+ROOM_NOT_FOUND = {404: {"model": ErrorDetail, "description": "room not found"}}
+SLOT_ALREADY_BOOKED = {409: {"model": ErrorDetail, "description": "slot already booked"}}
 
 # La route choisit le code HTTP et le contenu de chaque erreur retournée par un handler.
 HTTP_ERRORS = {
     ErrorKind.STORAGE_UNAVAILABLE: (500, "rooms unavailable"),
+    ErrorKind.ROOM_NOT_FOUND: (404, "room not found"),
+    ErrorKind.SLOT_ALREADY_BOOKED: (409, "slot already booked"),
 }
 
 
 def http_error(error: Error) -> HTTPException:
     status_code, detail = HTTP_ERRORS[error.kind]
     return HTTPException(status_code=status_code, detail=detail)
+
+
+class BookingRequest(BaseModel):
+    """Corps de POST /bookings. Un créneau refusé par slot_problem donne un 422."""
+
+    room_id: int
+    organizer: str = Field(min_length=1)
+    start: datetime
+    end: datetime
+
+    @model_validator(mode="after")
+    def check_slot(self) -> "BookingRequest":
+        problem = slot_problem(self.start, self.end)
+        if problem is not None:
+            raise ValueError(problem)
+        return self
 
 
 app = FastAPI(title="Salles", lifespan=lifespan)
@@ -83,3 +103,18 @@ def list_available_rooms(day: date, repository: Repo) -> list[Calendar]:
     if isinstance(result, Error):
         raise http_error(result)
     return result.calendars
+
+
+@app.post(
+    "/bookings",
+    status_code=201,
+    response_model=Booking,
+    responses=ROOM_NOT_FOUND | SLOT_ALREADY_BOOKED | ROOMS_UNAVAILABLE,
+)
+def create_booking(request: BookingRequest, repository: Repo) -> Booking:
+    result = handlers.create_booking(
+        repository, request.room_id, request.organizer, request.start, request.end
+    )
+    if isinstance(result, Error):
+        raise http_error(result)
+    return result.booking

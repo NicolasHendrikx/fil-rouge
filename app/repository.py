@@ -29,6 +29,44 @@ class Repository:
             rows = self._conn.execute("SELECT id, name, capacity FROM rooms ORDER BY id").fetchall()
         return [Room(id=row[0], name=row[1], capacity=row[2]) for row in rows]
 
+    def get_room(self, room_id: int) -> Room | None:
+        with _sqlite_errors():
+            row = self._conn.execute(
+                "SELECT id, name, capacity FROM rooms WHERE id = ?", (room_id,)
+            ).fetchone()
+        return Room(id=row[0], name=row[1], capacity=row[2]) if row else None
+
+    def create_booking_if_free(
+        self, room_id: int, organizer: str, start: datetime, end: datetime
+    ) -> int | None:
+        """Insère la réservation si aucune autre ne la chevauche ; renvoie son id, sinon None.
+
+        La vérification et l'insertion se font dans une même transaction verrouillée en écriture,
+        pour que deux demandes simultanées ne puissent pas réserver le même créneau.
+        """
+        starts_at, ends_at = start.isoformat(), end.isoformat()
+        with _sqlite_errors():
+            self._conn.execute("BEGIN IMMEDIATE")
+            try:
+                overlapping = self._conn.execute(
+                    "SELECT 1 FROM bookings"
+                    " WHERE room_id = ? AND starts_at < ? AND ends_at > ? LIMIT 1",
+                    (room_id, ends_at, starts_at),
+                ).fetchone()
+                if overlapping:
+                    self._conn.rollback()
+                    return None
+                cursor = self._conn.execute(
+                    "INSERT INTO bookings (room_id, organizer, starts_at, ends_at)"
+                    " VALUES (?, ?, ?, ?)",
+                    (room_id, organizer, starts_at, ends_at),
+                )
+                self._conn.commit()
+                return cursor.lastrowid
+            except BaseException:
+                self._conn.rollback()
+                raise
+
     def list_bookings_by_room(self, day: date) -> dict[int, list[tuple[datetime, datetime]]]:
         """Réservations du jour, regroupées par salle : {room_id: [(début, fin), ...]}."""
         with _sqlite_errors():
