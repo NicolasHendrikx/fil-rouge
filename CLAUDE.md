@@ -1,6 +1,6 @@
 # Salles — réservation de salles de réunion
 
-API FastAPI + SQLite. Une solution possible de la séquence S1.
+API FastAPI + SQLite. Une solution possible des séquences S1 à S3.
 
 ## Commandes
 
@@ -49,6 +49,13 @@ Une requête traverse trois couches, toujours dans cet ordre : route → handler
   (`detail`) sont en anglais, comme `"rooms unavailable"`.
 - Dates en ISO 8601 (`AAAA-MM-JJ`, `AAAA-MM-JJTHH:MM:SS`), heure locale, sans fuseau.
 - Toute nouvelle route a un test par code de réponse déclaré dans `openapi.yml`.
+
+## Garde-fous (`.claude/settings.json`)
+
+- Hook PreToolUse `.claude/hooks/protect_env.py` : bloque `Read`, `Edit` et `Write` sur `.env`.
+- Hook PostToolUse `.claude/hooks/ruff_after_edit.py` : `ruff format` puis `ruff check` sur le `.py`
+  édité ; les erreurs de `ruff check` reviennent à Claude, qui doit les corriger.
+- `permissions.deny` sur `Read(./.env)` et `Edit(./.env)` : bloque aussi `.env` dans les commandes Bash.
 
 ## Interdits
 
