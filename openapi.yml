@@ -51,6 +51,43 @@ paths:
         "500":
           $ref: "#/components/responses/RoomsUnavailable"
 
+  /bookings:
+    post:
+      operationId: create_booking
+      summary: Réserver une salle pour un créneau
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BookingRequest"
+      responses:
+        "201":
+          description: La réservation créée, avec la salle réservée.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Booking"
+        "404":
+          description: 'La salle n''existe pas : {"detail": "room not found"}.'
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetail"
+        "409":
+          description: >-
+            Le créneau chevauche une réservation existante de la même salle :
+            {"detail": "slot already booked"}. Des créneaux qui se touchent
+            (fin de l'un = début de l'autre) ne se chevauchent pas.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetail"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "500":
+          $ref: "#/components/responses/RoomsUnavailable"
+
 components:
   schemas:
     Room:
@@ -78,6 +115,35 @@ components:
         slots:
           type: array
           items: {$ref: "#/components/schemas/Slot"}
+
+    BookingRequest:
+      type: object
+      description: >-
+        Créneau demandé. Invalide (422) si `end` n'est pas après `start`, si les deux ne sont
+        pas le même jour, s'ils sortent de la journée (8 h – 18 h) ou ne tombent pas sur un
+        quart d'heure.
+      required: [room_id, organizer, start, end]
+      properties:
+        room_id: {type: integer}
+        organizer: {type: string, minLength: 1}
+        start:
+          type: string
+          format: date-time
+          description: Début, AAAA-MM-JJTHH:MM:SS, heure locale sans fuseau.
+        end:
+          type: string
+          format: date-time
+          description: Fin, AAAA-MM-JJTHH:MM:SS, heure locale sans fuseau.
+
+    Booking:
+      type: object
+      required: [id, room, organizer, start, end]
+      properties:
+        id: {type: integer}
+        room: {$ref: "#/components/schemas/Room"}
+        organizer: {type: string}
+        start: {type: string, format: date-time}
+        end: {type: string, format: date-time}
 
     ErrorDetail:
       type: object
