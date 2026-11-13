@@ -2,10 +2,16 @@
 
 import os
 import sqlite3
+from collections.abc import Iterator
 from contextlib import asynccontextmanager
+from datetime import date
 from pathlib import Path
+from typing import Annotated
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
+
+from app import handlers
+from app.calendar import Calendar, Room
 
 SCHEMA = Path(__file__).with_name("schema.sql")
 
@@ -23,16 +29,30 @@ async def lifespan(app: FastAPI):
     yield
 
 
+def get_conn() -> Iterator[sqlite3.Connection]:
+    conn = sqlite3.connect(get_db_path())
+    try:
+        yield conn
+    finally:
+        conn.close()
+
+
+Conn = Annotated[sqlite3.Connection, Depends(get_conn)]
+
 app = FastAPI(title="Salles", lifespan=lifespan)
 
 
-@app.get("/rooms")
-def list_rooms() -> list[dict]:
+@app.get("/rooms", response_model=list[Room])
+def list_rooms(conn: Conn) -> list[Room]:
     try:
-        conn = sqlite3.connect(get_db_path())
-        conn.row_factory = sqlite3.Row
-        rows = conn.execute("SELECT id, name, capacity FROM rooms ORDER BY id").fetchall()
-        conn.close()
+        return handlers.list_rooms(conn)
     except sqlite3.Error as error:
         raise HTTPException(status_code=500, detail="rooms unavailable") from error
-    return [dict(row) for row in rows]
+
+
+@app.get("/rooms/available", response_model=list[Calendar])
+def list_available_rooms(day: date, conn: Conn) -> list[Calendar]:
+    try:
+        return handlers.list_available_rooms(conn, day)
+    except sqlite3.Error as error:
+        raise HTTPException(status_code=500, detail="rooms unavailable") from error
