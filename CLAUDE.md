@@ -29,9 +29,10 @@ Une requête traverse trois couches, toujours dans cet ordre : route → handler
 
 ## Conventions
 
-- Code et noms en anglais ; commentaires, docstrings et messages en français.
+- Code et noms en anglais ; commentaires et docstrings en français. Les messages d'erreur de l'API
+  (`detail`) sont en anglais, comme `"rooms unavailable"`.
 - Dates en ISO 8601 (`AAAA-MM-JJ`, `AAAA-MM-JJTHH:MM:SS`), heure locale, sans fuseau.
-- Toute nouvelle route a un test par code de réponse (200, 422, 500).
+- Toute nouvelle route a un test par code de réponse déclaré dans `openapi.yml`.
 
 ## Interdits
 
