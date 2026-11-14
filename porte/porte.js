@@ -69,11 +69,48 @@ function renderError(message) {
   document.getElementById("state").textContent = "";
   document.getElementById("state").className = "state";
   document.getElementById("detail").textContent = message;
+  document.getElementById("planning").hidden = true;
+}
+
+// Planning du jour : bookings est la liste renvoyée par l'API, ou null si la requête a échoué.
+function renderPlanning(bookings) {
+  const section = document.getElementById("planning");
+  const message = document.getElementById("planning-message");
+  const list = document.getElementById("planning-list");
+  list.replaceChildren();
+  message.hidden = true;
+  section.hidden = false;
+  if (bookings === null || bookings.length === 0) {
+    message.textContent = bookings === null ? "Planning indisponible" : "Aucune réservation aujourd'hui";
+    message.hidden = false;
+    return;
+  }
+  for (const booking of bookings) {
+    const item = document.createElement("li");
+    const hours = document.createElement("span");
+    hours.className = "planning-hours";
+    hours.textContent = `${hourOf(booking.start)} – ${hourOf(booking.end)}`;
+    item.append(hours, ` ${booking.organizer}`);
+    list.append(item);
+  }
+}
+
+// Réservations de la journée de `moment` ; null si la route échoue (erreur HTTP ou réseau).
+async function fetchBookings(moment) {
+  const query = new URLSearchParams({ day: moment.slice(0, 10) });
+  try {
+    const response = await fetch(`${apiUrl}/rooms/${roomId}/bookings?${query}`);
+    return response.ok ? await response.json() : null;
+  } catch (error) {
+    return null;
+  }
 }
 
 async function refresh() {
   const moment = currentMoment();
   const query = new URLSearchParams({ at: floorToQuarter(moment) });
+  // Les deux requêtes partent en même temps ; fetchBookings ne rejette jamais.
+  const bookingsRequest = fetchBookings(moment);
   try {
     const response = await fetch(`${apiUrl}/rooms/${roomId}/status?${query}`);
     if (response.status === 404) {
@@ -87,7 +124,9 @@ async function refresh() {
     render(await response.json(), moment);
   } catch (error) {
     renderError("API injoignable");
+    return;
   }
+  renderPlanning(await bookingsRequest);
 }
 
 refresh();

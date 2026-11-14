@@ -13,7 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, model_validator
 
 from app import handlers
-from app.calendar import Booking, Calendar, Room, RoomStatus, slot_problem
+from app.calendar import Booking, BookingSummary, Calendar, Room, RoomStatus, slot_problem
 from app.handlers import Error, ErrorKind
 from app.repository import Repository
 
@@ -126,6 +126,18 @@ def get_room_status(room_id: int, at: datetime, repository: Repo) -> RoomStatus:
     if isinstance(result, Error):
         raise http_error(result)
     return result.status
+
+
+@app.get(
+    "/rooms/{room_id}/bookings",
+    response_model=list[BookingSummary],
+    responses=ROOM_NOT_FOUND | ROOMS_UNAVAILABLE,
+)
+def list_room_bookings(room_id: int, day: date, repository: Repo) -> list[BookingSummary]:
+    result = handlers.list_room_bookings(repository, room_id, day)
+    if isinstance(result, Error):
+        raise http_error(result)
+    return result.bookings
 
 
 @app.post(

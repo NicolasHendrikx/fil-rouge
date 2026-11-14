@@ -7,7 +7,15 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from enum import Enum
 
-from app.calendar import Booking, Calendar, Room, RoomStatus, day_slots, is_free
+from app.calendar import (
+    Booking,
+    BookingSummary,
+    Calendar,
+    Room,
+    RoomStatus,
+    day_slots,
+    is_free,
+)
 from app.repository import Repository, RepositoryError
 
 
@@ -42,6 +50,11 @@ class BookingResponse:
 @dataclass(frozen=True)
 class DeletedBookingResponse:
     booking_id: int
+
+
+@dataclass(frozen=True)
+class RoomBookingsResponse:
+    bookings: list[BookingSummary]
 
 
 @dataclass(frozen=True)
@@ -98,6 +111,20 @@ def delete_booking(repository: Repository, booking_id: int) -> DeletedBookingRes
     if not deleted:
         return Error(ErrorKind.BOOKING_NOT_FOUND)
     return DeletedBookingResponse(booking_id=booking_id)
+
+
+def list_room_bookings(
+    repository: Repository, room_id: int, day: date
+) -> RoomBookingsResponse | Error:
+    """Toutes les réservations de la salle ce jour-là (terminées comprises), triées par début."""
+    try:
+        room = repository.get_room(room_id)
+        if room is None:
+            return Error(ErrorKind.ROOM_NOT_FOUND)
+        bookings = repository.list_room_bookings(room.id, day)
+    except RepositoryError:
+        return Error(ErrorKind.STORAGE_UNAVAILABLE)
+    return RoomBookingsResponse(bookings=bookings)
 
 
 def get_room_status(

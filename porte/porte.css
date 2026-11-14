@@ -50,3 +50,41 @@ h1 {
   margin-top: 6vw;
   font-size: 5vw;
 }
+
+/* Planning du jour : toutes les réservations, terminées comprises. */
+.planning {
+  margin-top: 8vw;
+  padding-top: 4vw;
+  border-top: 0.3vw solid rgba(255, 255, 255, 0.3);
+}
+
+.planning[hidden],
+.planning-message[hidden] {
+  display: none;
+}
+
+.planning h2 {
+  margin: 0 0 3vw;
+  font-size: 5vw;
+}
+
+.planning-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 4.5vw;
+}
+
+.planning-list li {
+  margin: 1.5vw 0;
+}
+
+.planning-hours {
+  font-weight: bold;
+}
+
+.planning-message {
+  margin: 0;
+  font-size: 4.5vw;
+  opacity: 0.8;
+}

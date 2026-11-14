@@ -89,6 +89,47 @@ paths:
         "500":
           $ref: "#/components/responses/RoomsUnavailable"
 
+  /rooms/{room_id}/bookings:
+    get:
+      operationId: list_room_bookings
+      summary: Lister les réservations d'une salle pour un jour donné (écran de porte)
+      parameters:
+        - name: room_id
+          in: path
+          required: true
+          description: Identifiant de la salle.
+          schema:
+            type: integer
+        - name: day
+          in: query
+          required: true
+          description: Jour au format AAAA-MM-JJ.
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: >-
+            Toutes les réservations de la salle ce jour-là, y compris celles déjà terminées,
+            triées par heure de début croissante. Tableau vide si la salle n'a aucune
+            réservation ce jour-là.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BookingSummary"
+        "404":
+          description: 'La salle n''existe pas : {"detail": "room not found"}.'
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetail"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "500":
+          $ref: "#/components/responses/RoomsUnavailable"
+
   /bookings:
     post:
       operationId: create_booking
