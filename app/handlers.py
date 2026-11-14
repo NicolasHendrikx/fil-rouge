@@ -16,6 +16,7 @@ class ErrorKind(Enum):
     ROOM_NOT_FOUND = "room not found"
     SLOT_ALREADY_BOOKED = "slot already booked"
     TIME_WITH_TIMEZONE = "time with timezone"
+    BOOKING_NOT_FOUND = "booking not found"
 
 
 @dataclass(frozen=True)
@@ -36,6 +37,11 @@ class AvailableRoomsResponse:
 @dataclass(frozen=True)
 class BookingResponse:
     booking: Booking
+
+
+@dataclass(frozen=True)
+class DeletedBookingResponse:
+    booking_id: int
 
 
 @dataclass(frozen=True)
@@ -81,6 +87,17 @@ def create_booking(
         return Error(ErrorKind.SLOT_ALREADY_BOOKED)
     booking = Booking(id=booking_id, room=room, organizer=organizer, start=start, end=end)
     return BookingResponse(booking=booking)
+
+
+def delete_booking(repository: Repository, booking_id: int) -> DeletedBookingResponse | Error:
+    """Annule la réservation : son créneau redevient libre."""
+    try:
+        deleted = repository.delete_booking(booking_id)
+    except RepositoryError:
+        return Error(ErrorKind.STORAGE_UNAVAILABLE)
+    if not deleted:
+        return Error(ErrorKind.BOOKING_NOT_FOUND)
+    return DeletedBookingResponse(booking_id=booking_id)
 
 
 def get_room_status(

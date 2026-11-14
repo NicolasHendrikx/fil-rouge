@@ -152,3 +152,76 @@ def test_create_booking_without_database_returns_500(db_path):
 
     assert response.status_code == 500
     assert response.json() == {"detail": "rooms unavailable"}
+
+
+# DELETE /bookings/{booking_id} — réservations de démonstration : 1 Alice (Ourthe, 9 h – 10 h 30),
+# 2 Bruno (Ourthe, 14 h – 15 h), 3 Chloé (Meuse, 8 h – 18 h), 4 David (Vesdre, 10 h 15 – 11 h).
+
+
+def free_starts(client, room_id: int) -> list[str]:
+    """Débuts des quarts d'heure libres de la salle le 1er décembre 2026 ([] si salle complète)."""
+    calendars = client.get("/rooms/available", params={"day": DAY}).json()
+    calendar = next((c for c in calendars if c["subject"]["id"] == room_id), None)
+    return [slot["start"] for slot in calendar["slots"]] if calendar else []
+
+
+def test_delete_booking_returns_204_without_body(client):
+    response = client.delete("/bookings/1")
+
+    assert response.status_code == 204
+    assert response.content == b""
+
+
+def test_deleted_booking_slot_becomes_free_again(client):
+    assert f"{DAY}T09:00:00" not in free_starts(client, room_id=1)
+
+    client.delete("/bookings/1")
+
+    starts = free_starts(client, room_id=1)
+    assert f"{DAY}T09:00:00" in starts
+    assert f"{DAY}T10:15:00" in starts
+
+
+def test_deleted_booking_slot_can_be_booked_again(client):
+    client.delete("/bookings/1")
+
+    assert book(client, room_id=1, start="09:00", end="10:30").status_code == 201
+
+
+def test_delete_booking_keeps_other_bookings(client):
+    client.delete("/bookings/1")
+
+    # Bruno (14 h – 15 h, Ourthe) et Chloé (Meuse, toute la journée) restent réservés
+    assert f"{DAY}T14:00:00" not in free_starts(client, room_id=1)
+    assert free_starts(client, room_id=2) == []
+    assert book(client, room_id=1, start="14:00", end="15:00").status_code == 409
+
+
+def test_delete_booking_twice_returns_404(client):
+    assert client.delete("/bookings/1").status_code == 204
+
+    response = client.delete("/bookings/1")
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "booking not found"}
+
+
+def test_delete_unknown_booking_returns_404(client):
+    response = client.delete("/bookings/999")
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "booking not found"}
+
+
+def test_delete_booking_with_non_integer_id_returns_422(client):
+    assert client.delete("/bookings/abc").status_code == 422
+
+
+def test_delete_booking_without_database_returns_500(db_path):
+    Path(db_path).touch()  # fichier vide : la table bookings n'existe pas
+
+    with TestClient(app) as client:
+        response = client.delete("/bookings/1")
+
+    assert response.status_code == 500
+    assert response.json() == {"detail": "rooms unavailable"}

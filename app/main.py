@@ -57,6 +57,7 @@ class ErrorDetail(BaseModel):
 ROOMS_UNAVAILABLE = {500: {"model": ErrorDetail, "description": "rooms unavailable"}}
 ROOM_NOT_FOUND = {404: {"model": ErrorDetail, "description": "room not found"}}
 SLOT_ALREADY_BOOKED = {409: {"model": ErrorDetail, "description": "slot already booked"}}
+BOOKING_NOT_FOUND = {404: {"model": ErrorDetail, "description": "booking not found"}}
 
 # La route choisit le code HTTP et le contenu de chaque erreur retournée par un handler.
 HTTP_ERRORS = {
@@ -64,6 +65,7 @@ HTTP_ERRORS = {
     ErrorKind.ROOM_NOT_FOUND: (404, "room not found"),
     ErrorKind.SLOT_ALREADY_BOOKED: (409, "slot already booked"),
     ErrorKind.TIME_WITH_TIMEZONE: (422, "at must be a local time without timezone"),
+    ErrorKind.BOOKING_NOT_FOUND: (404, "booking not found"),
 }
 
 
@@ -139,3 +141,14 @@ def create_booking(request: BookingRequest, repository: Repo) -> Booking:
     if isinstance(result, Error):
         raise http_error(result)
     return result.booking
+
+
+@app.delete(
+    "/bookings/{booking_id}",
+    status_code=204,
+    responses=BOOKING_NOT_FOUND | ROOMS_UNAVAILABLE,
+)
+def delete_booking(booking_id: int, repository: Repo) -> None:
+    result = handlers.delete_booking(repository, booking_id)
+    if isinstance(result, Error):
+        raise http_error(result)

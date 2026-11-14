@@ -67,6 +67,13 @@ class Repository:
                 self._conn.rollback()
                 raise
 
+    def delete_booking(self, booking_id: int) -> bool:
+        """Supprime la réservation ; renvoie False si elle n'existait pas."""
+        with _sqlite_errors():
+            cursor = self._conn.execute("DELETE FROM bookings WHERE id = ?", (booking_id,))
+            self._conn.commit()
+        return cursor.rowcount > 0
+
     def list_bookings_by_room(self, day: date) -> dict[int, list[tuple[datetime, datetime]]]:
         """Réservations du jour, regroupées par salle : {room_id: [(début, fin), ...]}."""
         with _sqlite_errors():
