@@ -46,6 +46,21 @@ h1 {
   background: #d90642;
 }
 
+/* Bandeau « Bientôt occupée » : la réservation suivante commence dans moins de 15 minutes. */
+.soon {
+  margin: 6vw auto 0;
+  padding: 2vw 4vw;
+  border-radius: 3vw;
+  font-size: 4.5vw;
+  font-weight: bold;
+  background: #f9a825;
+  color: #1f1c3e;
+}
+
+.soon[hidden] {
+  display: none;
+}
+
 .detail {
   margin-top: 6vw;
   font-size: 5vw;
