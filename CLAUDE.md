@@ -9,6 +9,16 @@ API FastAPI + SQLite. Une solution possible de la séquence S1.
 - Tests : `pytest` — à lancer après toute modification de code
 - Qualité : `ruff format .` puis `ruff check .` — doivent passer avant de rendre la main
 
+## Fini, c'est mesuré
+
+Une tâche est finie quand ces quatre mesures passent, pas avant :
+
+- `pytest` passe en entier.
+- La spécification est couverte à 100 % : chaque code de réponse de `openapi.yml` est obtenu par au
+  moins un test (`test_every_contract_code_is_obtained_by_a_test`, sur la suite complète).
+- `pytest --cov` couvre au moins 90 % des branches de `app/` (seuil dans `pyproject.toml`).
+- `ruff check .` passe, complexité cyclomatique comprise (`C901`, au plus 8 par fonction).
+
 ## Architecture
 
 Une requête traverse trois couches, toujours dans cet ordre : route → handler → repository.

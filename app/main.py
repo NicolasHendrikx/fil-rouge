@@ -25,8 +25,11 @@ def get_db_path() -> str:
 async def lifespan(app: FastAPI):
     db_path = get_db_path()
     if not Path(db_path).exists():
-        with sqlite3.connect(db_path) as conn:
+        conn = sqlite3.connect(db_path)
+        try:
             conn.executescript(SCHEMA.read_text(encoding="utf-8"))
+        finally:
+            conn.close()
     yield
 
 
