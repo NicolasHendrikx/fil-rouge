@@ -126,6 +126,32 @@ paths:
         "500":
           $ref: "#/components/responses/RoomsUnavailable"
 
+  /bookings/{booking_id}:
+    delete:
+      operationId: delete_booking
+      summary: Annuler une réservation
+      parameters:
+        - name: booking_id
+          in: path
+          required: true
+          description: Identifiant de la réservation.
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: >-
+            La réservation est supprimée ; le créneau redevient libre. Pas de corps de réponse.
+        "404":
+          description: 'La réservation n''existe pas : {"detail": "booking not found"}.'
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetail"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "500":
+          $ref: "#/components/responses/RoomsUnavailable"
+
 components:
   schemas:
     Room:
