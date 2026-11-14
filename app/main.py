@@ -31,7 +31,9 @@ async def lifespan(app: FastAPI):
 
 
 def get_conn() -> Iterator[sqlite3.Connection]:
-    conn = sqlite3.connect(get_db_path())
+    # Une connexion par requête. FastAPI peut l'ouvrir dans un thread et exécuter la route dans un
+    # autre : sans check_same_thread=False, des requêtes simultanées échouent en 500.
+    conn = sqlite3.connect(get_db_path(), check_same_thread=False)
     try:
         yield conn
     finally:
