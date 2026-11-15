@@ -46,7 +46,7 @@ h1 {
   background: #d90642;
 }
 
-/* Bandeau « Bientôt occupée » : la réservation suivante commence dans moins de 15 minutes. */
+/* Bandeau « Bientôt occupée » : la réservation suivante commence dans 15 minutes au plus. */
 .soon {
   margin: 6vw auto 0;
   padding: 2vw 4vw;

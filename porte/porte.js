@@ -6,7 +6,7 @@ const params = new URLSearchParams(window.location.search);
 const roomId = params.get("room") ?? "1";
 const apiUrl = params.get("api") ?? "http://127.0.0.1:8000";
 const REFRESH_MS = 60_000;
-// En deçà de ce délai avant la réservation suivante, la salle libre est annoncée « Bientôt occupée ».
+// Jusqu'à ce délai avant la réservation suivante (inclus), la salle libre est annoncée « Bientôt occupée ».
 const SOON_MINUTES = 15;
 
 const DATE_FORMAT = new Intl.DateTimeFormat("fr-BE", {
@@ -69,6 +69,7 @@ function render(status, moment) {
   const detail = document.getElementById("detail");
   const soon = document.getElementById("soon");
   hideSoon();
+  detail.hidden = false;
   if (status.state === "occupied") {
     state.textContent = "Occupée";
     state.className = "state occupied";
@@ -83,16 +84,21 @@ function render(status, moment) {
     // Délai calculé depuis l'instant réel, pas depuis le quart d'heure interrogé : sinon, de 13:46
     // à 13:59, une réservation à 14:00 paraîtrait toujours à 15 minutes.
     const delay = status.next ? minutesBetween(moment, status.next.start) : null;
-    if (delay !== null && delay > 0 && delay < SOON_MINUTES) {
+    // 15 minutes pile comptent : les réservations commencent au quart d'heure, le bandeau apparaît
+    // donc dès le quart d'heure qui précède.
+    if (delay !== null && delay > 0 && delay <= SOON_MINUTES) {
       soon.textContent =
         `Bientôt occupée · ${status.next.organizer} à ${hourOf(status.next.start)}`;
       soon.hidden = false;
+      // Le bandeau dit déjà qui arrive et à quelle heure : la ligne de détail ferait doublon.
+      detail.hidden = true;
     }
   }
 }
 
 function renderError(message) {
   hideSoon();
+  document.getElementById("detail").hidden = false;
   document.getElementById("room-name").textContent = "Écran indisponible";
   document.getElementById("state").textContent = "";
   document.getElementById("state").className = "state";
