@@ -1,30 +1,32 @@
 """Objet calendar : sujet = une salle, portée = une journée, granularité = le quart d'heure."""
 
+from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
-
-from pydantic import BaseModel
 
 DAY_START = time(8)
 DAY_END = time(18)
 GRANULARITY = timedelta(minutes=15)
 
 
-class Room(BaseModel):
+@dataclass(frozen=True)
+class Room:
     id: int
     name: str
     capacity: int
 
 
-class Slot(BaseModel):
+@dataclass(frozen=True)
+class Slot:
     start: datetime
     end: datetime
 
 
-class Calendar(BaseModel):
+@dataclass(frozen=True)
+class Calendar:
     subject: Room
     day: date
-    granularity_minutes: int = int(GRANULARITY.total_seconds() // 60)
     slots: list[Slot]
+    granularity_minutes: int = int(GRANULARITY.total_seconds() // 60)
 
 
 def day_slots(day: date) -> list[Slot]:

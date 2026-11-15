@@ -13,6 +13,8 @@ from pydantic import BaseModel
 
 from app import handlers
 from app.calendar import Calendar, Room
+from app.handlers import Error, ErrorKind
+from app.repository import Repository
 
 SCHEMA = Path(__file__).with_name("schema.sql")
 
@@ -33,17 +35,17 @@ async def lifespan(app: FastAPI):
     yield
 
 
-def get_conn() -> Iterator[sqlite3.Connection]:
+def get_repository() -> Iterator[Repository]:
     # Une connexion par requête. FastAPI peut l'ouvrir dans un thread et exécuter la route dans un
     # autre : sans check_same_thread=False, des requêtes simultanées échouent en 500.
     conn = sqlite3.connect(get_db_path(), check_same_thread=False)
     try:
-        yield conn
+        yield Repository(conn)
     finally:
         conn.close()
 
 
-Conn = Annotated[sqlite3.Connection, Depends(get_conn)]
+Repo = Annotated[Repository, Depends(get_repository)]
 
 
 class ErrorDetail(BaseModel):
@@ -53,20 +55,31 @@ class ErrorDetail(BaseModel):
 # Réponse d'erreur commune, déclarée pour respecter le contrat openapi.yml.
 ROOMS_UNAVAILABLE = {500: {"model": ErrorDetail, "description": "rooms unavailable"}}
 
+# La route choisit le code HTTP et le contenu de chaque erreur retournée par un handler.
+HTTP_ERRORS = {
+    ErrorKind.STORAGE_UNAVAILABLE: (500, "rooms unavailable"),
+}
+
+
+def http_error(error: Error) -> HTTPException:
+    status_code, detail = HTTP_ERRORS[error.kind]
+    return HTTPException(status_code=status_code, detail=detail)
+
+
 app = FastAPI(title="Salles", lifespan=lifespan)
 
 
 @app.get("/rooms", response_model=list[Room], responses=ROOMS_UNAVAILABLE)
-def list_rooms(conn: Conn) -> list[Room]:
-    try:
-        return handlers.list_rooms(conn)
-    except sqlite3.Error as error:
-        raise HTTPException(status_code=500, detail="rooms unavailable") from error
+def list_rooms(repository: Repo) -> list[Room]:
+    result = handlers.list_rooms(repository)
+    if isinstance(result, Error):
+        raise http_error(result)
+    return result.rooms
 
 
 @app.get("/rooms/available", response_model=list[Calendar], responses=ROOMS_UNAVAILABLE)
-def list_available_rooms(day: date, conn: Conn) -> list[Calendar]:
-    try:
-        return handlers.list_available_rooms(conn, day)
-    except sqlite3.Error as error:
-        raise HTTPException(status_code=500, detail="rooms unavailable") from error
+def list_available_rooms(day: date, repository: Repo) -> list[Calendar]:
+    result = handlers.list_available_rooms(repository, day)
+    if isinstance(result, Error):
+        raise http_error(result)
+    return result.calendars

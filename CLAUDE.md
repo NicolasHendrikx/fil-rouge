@@ -23,12 +23,18 @@ Une tâche est finie quand ces quatre mesures passent, pas avant :
 
 Une requête traverse trois couches, toujours dans cet ordre : route → handler → repository.
 
-- `app/main.py` : les routes. Une route ne fait que trois choses : lire ses paramètres, appeler
-  son handler, convertir `sqlite3.Error` en HTTP 500 `{"detail": "rooms unavailable"}`.
-- `app/handlers.py` : un handler par route, du même nom que la fonction de route. Le handler
-  obtient les données en appelant le repository, jamais en ouvrant la base lui-même.
-- `app/repository.py` : le SEUL module qui contient du SQL. Requêtes paramétrées (`?`).
-- `app/calendar.py` : l'objet `Calendar` renvoyé par toute route qui parle de disponibilités.
+- `app/main.py` : les routes. Une route ne contient aucune logique métier : elle lit ses
+  paramètres, appelle son handler, puis traduit ce qu'il retourne en réponse HTTP. Elle seule
+  choisit le code HTTP et le contenu : une `Error` devient une `HTTPException` par `HTTP_ERRORS`
+  (ex. `STORAGE_UNAVAILABLE` → 500 `{"detail": "rooms unavailable"}`).
+- `app/handlers.py` : un handler par route, du même nom que la fonction de route. Il obtient les
+  données par le `Repository` et retourne soit une dataclass de réponse propre à sa route
+  (`RoomsResponse`, `AvailableRoomsResponse`…), soit une `Error` (`ErrorKind`). Il n'importe ni
+  `sqlite3` ni `fastapi`.
+- `app/repository.py` : le SEUL module qui contient du SQL et qui connaît `sqlite3`. Requêtes
+  paramétrées (`?`). Toute `sqlite3.Error` y devient une `RepositoryError`.
+- `app/calendar.py` : les dataclasses du domaine (`Room`, `Slot`, `Calendar`), sans dépendance
+  à l'infrastructure. `Calendar` est renvoyé par toute route qui parle de disponibilités.
   Son sujet est une salle (`subject`), sa portée une journée (`day`), sa granularité le quart
   d'heure (`granularity_minutes: 15`) ; `slots` liste des créneaux `{start, end}` de 15 min.
   Les heures de la journée (8 h – 18 h) sont `DAY_START` et `DAY_END` : ne pas les recopier ailleurs.
